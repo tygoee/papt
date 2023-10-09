@@ -2,6 +2,9 @@
 
 Personal apt: installs apt packages locally in `~/.local/`, without needing root privileges. This script installs the packages in a temp directory using `dpkg -x` and moves them to `~/.local/`.
 
+> [!IMPORTANT]  
+> This is still in very early development and could break your `~/.local/` folder. I recommend using this in a virtual machine or other seperated environment.
+
 ## Installation
 
 First, clone the repository and cd there:
