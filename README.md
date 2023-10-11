@@ -15,7 +15,7 @@ First, clone the repository and cd there:
 If you want this to be available as a command, copy it to `~/.local/bin/`:
 
     mkdir -p ~/.local/bin/
-    cp ./papt.sh ~/.local/bin/papt
+    cp ./papt ~/.local/bin/
 
 Finally, setup papt:
 
