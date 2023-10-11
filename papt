@@ -18,7 +18,7 @@ _help() {
 _install() {
     # Install a package (and all dependencies)
     if [ $# -eq 0 ]; then
-        echo "No packages specified."
+        echo "No packages specified, exiting..."
         exit 1
     fi
 
@@ -33,13 +33,23 @@ _install() {
     }
 
     # Exit if there's no internet connection
-    if ! ping -c 1 -W 1 "deb.debian.org" > /dev/null 2>&1; then
-        echo "You need an active internet connection"
-        exit 1
+    if which ping &>/dev/null; then
+        if ! ping -c 1 -W 1 "deb.debian.org" > /dev/null 2>&1; then
+            echo "You need an active internet connection"
+            exit 1
+        fi
+    else
+        echo "WARNING: ping is not installed; could not check internet connection."
+        echo "Install the iputils-ping package to install ping."
     fi
 
-    # TODO: Check if all packages exist
+    # Check if all packages exist
     # and give a confirmation prompt
+    for package_name in "$@"; do
+        if ! apt-cache show "$package_name" &>/dev/null; then
+            echo "Unable to locate package $package_name, exiting..."
+        fi
+    done
 
     # Download package and all dependencies
     for package_name in "$@"; do
@@ -73,15 +83,24 @@ _install() {
     local_dir="$HOME/.local/"
     mkdir -p "$local_dir"
 
-    find "$inst_dir" -mindepth 1 -maxdepth 1 ! -name 'usr' -exec cp -rn {} "$local_dir" \;
+    for file in "$inst_dir"/*; do
+        if [ -d "$file" ] && [ "$(basename "$file")" != "usr" ]; then
+            cp -r "$file" "$local_dir"
+        fi
+    done
 
     if [ -d "$inst_dir/usr/" ]; then
-        find "$inst_dir/usr/" -mindepth 1 -maxdepth 1 ! -name 'local' -exec cp -rn {} "$local_dir" \;
+        for file in "$inst_dir/usr"/*; do
+            if [ -d "$file" ] && [ "$(basename "$file")" != "local" ]; then
+                cp -r "$file" "$local_dir"
+            fi
+        done
     fi
 
     if [ -d "$inst_dir/usr/local/" ]; then
-        cp -rn "$inst_dir/usr/local/"* "$local_dir"
+        cp -r "$inst_dir/usr/local/"* "$local_dir"
     fi
+
 
     # Echo Done when the
     # installation is done
