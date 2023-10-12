@@ -18,56 +18,82 @@ _help() {
 _install() {
     # Install a package (and all dependencies)
     if [ $# -eq 0 ]; then
-        echo "No packages specified, exiting..."
+        echo "E: No packages specified"
         exit 1
     fi
 
     # Make a temp dir and cd there
-    temp_dir="$HOME/.temp/"
+    local temp_dir="$HOME/.temp/"
     mkdir -p "$temp_dir"
     trap '[ -d "$HOME/.temp/" ] && rm -rf "$HOME/.temp/"' EXIT
 
     cd "$temp_dir" || {
-        echo "Cannot CD into $temp_dir, exiting..."
+        echo "E: Cannot CD into $temp_dir"
         exit 1;
     }
 
-    # Exit if there's no internet connection
-    if which ping &>/dev/null; then
-        if ! ping -c 1 -W 1 "deb.debian.org" > /dev/null 2>&1; then
-            echo "You need an active internet connection"
-            exit 1
-        fi
-    else
-        echo "WARNING: ping is not installed; could not check internet connection."
-        echo "Install the iputils-ping package to install ping."
-    fi
-
     # Check if all packages exist
-    # and give a confirmation prompt
+    echo -n "Reading package lists... "
     for package_name in "$@"; do
         if ! apt-cache show "$package_name" &>/dev/null; then
-            echo "Unable to locate package $package_name, exiting..."
+            echo -e "\nE: Unable to locate package $package_name"
+            exit 1
+        fi
+    done
+    echo "Done"
+
+    # Read all dependencies
+    local dependencies
+
+    echo -n "Building dependency tree... "
+    for package_name in "$@"; do
+        dependencies+=$(apt-cache depends --recurse -i "$package_name" |
+                        grep "Depends:" | awk '{print $2}')
+    done
+
+    # Define the packages that include virtual
+    local _packages
+    _packages="$* $(echo "$dependencies" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+
+    local packages=()
+
+    # Append to $packages if they aren't virtual
+    for package in $_packages; do
+        package=${package#<} && package=${package%>}
+        if ! apt-cache show -q=0 "$package" 2>&1 | grep -q "virtual"; then
+        packages+=("$package")
         fi
     done
 
+    echo "Done"
+
+    # TODO: Read the package lists to see
+    # if the packages already exist, and
+    # the recomended + suggested packages
+    echo -n "Reading state information... "
+    echo "Done"
+
+    # List the installed packages and
+    # give a confirmation prompt
+    echo "The following additional packages will be installed:"
+    echo "${packages[@]}" | fold -s -w $(($(tput cols)-2)) | sed -e 's/^/  /'
+
+    echo -n "Do you want to continue [Y/n] "
+    read -r continue
+
+    # I couldn't find a better way to
+    # check if $continue in ('Y' 'y' '')
+    if ! [[ $continue == 'Y' || $continue == 'y' || $continue == '' ]]; then
+        echo "Abort."
+        exit 0
+    fi
+
     # Download package and all dependencies
-    for package_name in "$@"; do
-        apt download "$package_name" || {
-            echo "Error while trying to install package, exiting...";
-            exit 1
-        }
 
-        echo "Collecting dependencies..."
-        dependencies=$(apt-cache depends --recurse -i "$package_name" |
-                        grep "Depends:" | awk '{print $2}' | sort -u)
+    # TODO: Ignore virtual packages using
+    # apt download .. || { apt show | grep ..; }
 
-        for dependency in $dependencies; do
-            # TODO: Ignore virtual packages using
-            # apt download .. || { apt show | grep ..; }
-            apt download "$dependency"
-        done
-    done
+    apt download "${packages[@]}" || { echo "E: Error while trying to install packages" && exit 1; }
 
     # Install all of them in .temp/install/
     for deb_file in "$temp_dir"*.deb; do
@@ -79,8 +105,8 @@ _install() {
     # to their corresponding directories
     echo "Moving files..."
 
-    inst_dir="$temp_dir/install"
-    local_dir="$HOME/.local/"
+    local inst_dir="$temp_dir/install"
+    local local_dir="$HOME/.local/"
     mkdir -p "$local_dir"
 
     for file in "$inst_dir"/*; do
@@ -121,6 +147,7 @@ _setup() {
 
     # Add the library path to .profile
     # if --setup is specified
+    local lib_paths
     lib_paths="$(printf '%s' \
         "export LD_LIBRARY_PATH=" \
         "$HOME/.local/lib:" \
