@@ -35,7 +35,9 @@ _install() {
     # Check if all packages exist
     echo -n "Reading package lists... "
     for package_name in "$@"; do
-        if ! apt-cache show "$package_name" &>/dev/null; then
+        if [[ $package_name == -* ]]; then
+            continue
+        elif ! apt-cache show "$package_name" &>/dev/null; then
             echo -e "\nE: Unable to locate package $package_name"
             exit 1
         fi
@@ -47,13 +49,27 @@ _install() {
 
     echo -n "Building dependency tree... "
     for package_name in "$@"; do
+        if [[ $package_name == -* ]]; then
+            continue
+        fi
+
         dependencies+=$(apt-cache depends --recurse -i "$package_name" |
                         grep "Depends:" | awk '{print $2}')
     done
 
+    # Define the arguments, without
+    # the ones starting with "-"
+    local pkgs
+
+    for arg in "$@"; do
+        if ! [[ "$arg" == -* ]]; then
+            pkgs+="$arg "
+        fi
+    done
+
     # Define the packages that include virtual
     local _packages
-    _packages="$* $(echo "$dependencies" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+    _packages="$pkgs$(echo "$dependencies" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
 
     local packages=()
 
@@ -79,13 +95,12 @@ _install() {
     echo "${packages[@]}" | fold -s -w $(($(tput cols)-2)) | sed -e 's/^/  /'
 
     echo -n "Do you want to continue [Y/n] "
-    read -r continue
-
-    # I couldn't find a better way to
-    # check if $continue in ('Y' 'y' '')
-    if ! [[ $continue == 'Y' || $continue == 'y' || $continue == '' ]]; then
-        echo "Abort."
-        exit 0
+    if ! [[ $* =~ "-y" ]]; then
+        read -r continue
+        if ! [[ "$continue" =~ ^(Y|y|)$ ]]; then
+            echo "Abort."
+            exit 0
+        fi
     fi
 
     # Download package and all dependencies
