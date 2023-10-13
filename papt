@@ -53,8 +53,8 @@ _install() {
             continue
         fi
 
-        dependencies+=$(apt-cache depends --recurse -i "$package_name" |
-                        grep "Depends:" | awk '{print $2}')
+        dependencies+="$(apt-cache depends --recurse -i "$package_name" |
+                        grep "Depends:" | awk '{print $2}') "
     done
 
     # Define the arguments, without
