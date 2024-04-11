@@ -1,3 +1,5 @@
+> This app is abandoned as it's barely functional and I don't use a debian distro anymore (which means I probably won't update it). Feel free to give it a pull request if you want it to continue.
+
 # Papt - Personal apt
 
 Personal apt: installs apt packages locally in `~/.local/`, without needing root privileges. This script installs the packages in a temp directory using `dpkg -x` and moves them to `~/.local/`.
