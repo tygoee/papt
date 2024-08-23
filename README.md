@@ -42,7 +42,7 @@ If you want a place in this section, feel free to contribute :)
 
 ---
 
-© Tygo Everts | 2023  
+© Tygoee | 2023  
 This code is licensed under the MIT License.  
 For more details, see [LICENSE](/LICENSE).
 
